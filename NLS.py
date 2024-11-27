@@ -1,6 +1,6 @@
 
 import dolfinx.fem
-import dolfinx_mpcgit
+import dolfinx_mpc
 import dolfinx.fem.petsc
 import dolfinx.la as _la
 import dolfinx.nls.petsc

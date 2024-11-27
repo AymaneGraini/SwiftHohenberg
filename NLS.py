@@ -1,6 +1,9 @@
 
 import dolfinx.fem
-import dolfinx_mpc
+import dolfinx_mpcgit
+import dolfinx.fem.petsc
+import dolfinx.la as _la
+import dolfinx.nls.petsc
 from mpi4py import MPI  
 import dolfinx.la as _la
 from scifem import BlockedNewtonSolver

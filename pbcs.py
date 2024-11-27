@@ -15,7 +15,10 @@ from dolfinx.mesh import locate_entities_boundary, meshtags
 import dolfinx_mpc
 
 
-def periodic_bcs(domain, funcspace,ndir):
+def periodic_bcs(domain, funcspace,nspace):
+
+    ndir=2
+
     fdim = domain.topology.dim - 1
     pbc_directions = []
     pbc_slave_tags = []
@@ -44,7 +47,7 @@ def periodic_bcs(domain, funcspace,ndir):
         return lambda x: np.isclose(x[i], domain.geometry.x.min())
 
     def parse_bcs():
-        for i in range(2):
+        for i in range(ndir):
             pbc_directions.append(i)
             pbc_slave_tags.append(i + 2)
             pbc_is_slave.append(generate_pbc_is_slave(i))
@@ -94,8 +97,7 @@ def periodic_bcs(domain, funcspace,ndir):
         functionspace = funcspace
         parse_bcs()
     else:
-        ###################" VERY IMPORTANT CHECK N SUBSPACES vs N SUBSPAC ES -1"
-        for j in range(ndir):
+        for j in range(nspace):
             functionspace = funcspace.sub(j)
             parse_bcs()
             

@@ -89,6 +89,6 @@ def PeriodicBC(domain,funcspace,nsub,boundary_condition = ["periodic", "periodic
     else:
         for n in range(nsub):
             applybcs(funcspace.sub(n))
-        mpc.finalize()
+    mpc.finalize()
 
     return mpc

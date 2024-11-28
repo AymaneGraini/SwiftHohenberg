@@ -20,6 +20,8 @@ def PeriodicBC(domain,funcspace,nsub,boundary_condition = ["periodic", "periodic
     pbc_meshtags = []
     pbc_slave_to_master_maps = []
 
+    Nsubspaces = funcspace.num_sub_spaces #THe number of available subspaces
+
     def generate_pbc_slave_to_master_map(i):
         maxd = L if i==0 else H
         def pbc_slave_to_master_map(x):
@@ -82,8 +84,11 @@ def PeriodicBC(domain,funcspace,nsub,boundary_condition = ["periodic", "periodic
 
             mpc.create_periodic_constraint_topological(space, pbc_meshtags[1], pbc_slave_tags[1], pbc_slave_to_master_map, bcs)
 
-    for n in range(nsub):
-        applybcs(funcspace.sub(n))
-    mpc.finalize()
+    if Nsubspaces==0:
+        applybcs(funcspace)
+    else:
+        for n in range(nsub):
+            applybcs(funcspace.sub(n))
+        mpc.finalize()
 
     return mpc

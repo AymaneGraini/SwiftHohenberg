@@ -73,10 +73,10 @@ W = ufl.MixedFunctionSpace(V, V)
 dpsi,dmu = ufl.TrialFunctions(W)
 q, v = ufl.TestFunctions(W)
 
-psi = fem.Function(V)
-mu = fem.Function(V)
-psi0 = fem.Function(V)
-mu0 = fem.Function(V)
+psi = fem.Function(V,name="Psi")
+mu = fem.Function(V,name="Mu")
+psi0 = fem.Function(V,name="Psi0")
+mu0 = fem.Function(V,name="Mu0")
 P = basix.ufl.element("Lagrange", domain.basix_cell(), 1) ## Interpolation
 print(P)
 ME = fem.functionspace(domain, basix.ufl.mixed_element([P, P])) # A mixed space FE
@@ -100,7 +100,7 @@ initialCmu = lambda x : -A(g,avg,eps)*(np.cos(x[1]/2)*np.cos(np.sqrt(3)*x[0]/2) 
 
 
 # A*(cos(sqrt(3)*x/2)*cos(y/2)-0.5*cos(y))+p
-filename = "mpcNLblocktesting"
+filename = "mpcNLblocktestinggg"
 
 # Interpolate initial condition
 rng = np.random.default_rng(42)
@@ -149,7 +149,7 @@ t=0
 
 # solver = BlockMPC.BlockedNewtonSolverMPC(F,[psi, mu],[mpc,mpc])
 # solver = BlockNLS.BlockedNewtonSolver(F,[psi, mu])
-solver = NESTMPC.NestedNewtonSolver(F,[psi, mu],[mpc,mpc])
+solver = NESTMPC.NestedNewtonSolver(F,[psi, mu],[mpc,mpc],False)
 
 
 # Create a grid
@@ -201,33 +201,22 @@ else:
     opts[f"{option_prefix}pc_type"] = "lu"
 ksp.setFromOptions()
 
-solver.solve()
+# solver.solve()
 
 
-get2dplot(psi,x_vals, y_vals,domain,tree,filename+"1iter",True)
-get2dplot(mu,x_vals, y_vals,domain,tree,filename+"1iter",True)
-exit()
+# get2dplot(psi,x_vals, y_vals,domain,tree,filename+"1iter",True)
+# get2dplot(mu,x_vals, y_vals,domain,tree,filename+"1iter",True)
+# exit()
 
 # print(scifem.evaluate_function(psi, points))
 # print(evaluate_function(mu, points))
 
 
-file = dolfinx.io.XDMFFile(MPI.COMM_WORLD, "./"+filename+".xdmf", "w")
-file.write_mesh(domain)
+file = dolfinx.io.VTXWriter(MPI.COMM_WORLD, "./"+filename+".bp", [psi,mu])
+file.write(0.0)
 
 
-# V0, dofs = W.sub(0).collapse()
-
-topology, cell_types, x = plot.vtk_mesh(V)
-grid = pyvista.UnstructuredGrid(topology, cell_types, x)
-file.write_function(psi, 0)
-# file.write_function(mu, 0)
-file.close()
-exit()
-
-
-
-psi.x.array[:] = psi.x.array
+# psi.x.array[:] = psi.x.array
 print("SOlving...") ; t1=time.time()
 t = 0.0
 Average_ts=[]
@@ -242,27 +231,29 @@ E = fem.assemble_scalar(fem.form(-((1/2)*(-eps+(q0)**4)*psi**2+(1/4)*psi**4-(g/3
 Energy_ts.append(E)
 Error_ts.append(error_L2(psi, hex))
 
-file.write_function(psi, t)
 
 # print(type(psi))
 
 
-while t < 20:
+while t < 1:
     t += dt
     # print("attemptin iteration...")
     r = solver.solve()
+    file.write(t)
     print(r)
-    # print(f"Step {int(t / dt)}: num iterations: {r[0]}","time=",t)
+    print(f"Step {int(t / dt)}: num iterations: {r[0]}","time=",t)
     psi0.x.array[:] = psi.x.array
+    mu0.x.array[:] = mu.x.array
     psi_avg = fem.assemble_scalar(fem.form(psi*dx))/(L*H)
     ts.append(t)
     Average_ts.append(psi_avg)
-    file.write_function(psi, t)
+    # file.write_function(psi, t)
+    # file.write_function(mu, t)
     ### Compute total energy
     E = fem.assemble_scalar(fem.form(
         ((1/2)*(-eps+(N*q0)**4)*psi**2+(1/4)*psi**4-(g/3)*psi**3+(1/2)*(mu)**2-q0**2*inner(grad(psi),grad(psi)))*dx))
     Energy_ts.append(E)
-    Error_ts.append(error_L2(psi, hex))
+    # Error_ts.append(error_L2(psi, hex))
 t2=time.time()
 file.close()
 

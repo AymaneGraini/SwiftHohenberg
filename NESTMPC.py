@@ -123,7 +123,6 @@ class NestedNewtonSolver(dolfinx.cpp.nls.petsc.NewtonSolver):
 
 
 
-
     def set_pre_solve_callback(self, callback: Callable[["NestedNewtonSolver"], None]):
         """Set a callback function that is called before each Newton iteration."""
         self._pre_solve_callback = callback
@@ -223,7 +222,7 @@ class NestedNewtonSolver(dolfinx.cpp.nls.petsc.NewtonSolver):
 
     def _update_function(self, solver, dx: PETSc.Vec, x: PETSc.Vec):
         print("started updating ", self._u[0].x.array,self._u[1].x.array)
-        print("dx= ",dx.getArray())
+        print("dx= ",dx.getType(),dx.getArray())
         if self._post_solve_callback is not None:
             self._post_solve_callback(self)
         # Update solution

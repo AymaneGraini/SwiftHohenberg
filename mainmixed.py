@@ -49,15 +49,15 @@ yell_ = np.pi
 # print(L,H)
 # cell_sizex = xell_/5
 # cell_sizey = yell_/5
-# nx = 2
-# ny = 2
+# nx = 100
+# ny = 100
 # comm = MPI.COMM_WORLD
 # domain = mesh.create_rectangle(comm, [(0.0, 0.0), (L, H)], [nx, ny],mesh.CellType.quadrilateral)
 # ndim = domain.geometry.dim
+
 L = 20*xell_; H = 20*yell_
 cell_sizex = xell_/5
 cell_sizey = yell_/5
-
 print(L,H)
 nx = int(L/cell_sizex)
 ny = int(H/cell_sizey)
@@ -100,13 +100,16 @@ initialCmu = lambda x : -A(g,avg,eps)*(np.cos(x[1]/2)*np.cos(np.sqrt(3)*x[0]/2) 
 
 
 # A*(cos(sqrt(3)*x/2)*cos(y/2)-0.5*cos(y))+p
-filename = "mpcNLblocktestinggg"
+filename = "mpcNLblocktestinggg-shurpre"
 
 # Interpolate initial condition
 rng = np.random.default_rng(42)
 initialCpsi = lambda x :hex(x)
-initialCpsi = lambda x : (rng.random(x.shape[1])-0.5)+avg*0.8+hex(x)*0.2
+initialCpsi = lambda x : hex(x)*0.2+(rng.random(x.shape[1])-0.5)+avg*0.8
+initialCmu = lambda x : -A(g,avg,eps)*(np.cos(x[1]/2)*np.cos(np.sqrt(3)*x[0]/2) - 2*np.cos(x[1]))/4 - 3*A(g,avg,eps)*np.cos(x[1]/2)*np.cos(np.sqrt(3)*x[0]/2)/4
+
 psi.interpolate(initialCpsi)
+mu.interpolate(initialCmu)
 mu.x.array[:]=0
 
 # psi.x.array[:]=1
@@ -149,7 +152,7 @@ t=0
 
 # solver = BlockMPC.BlockedNewtonSolverMPC(F,[psi, mu],[mpc,mpc])
 # solver = BlockNLS.BlockedNewtonSolver(F,[psi, mu])
-solver = NESTMPC.NestedNewtonSolver(F,[psi, mu],[mpc,mpc],False)
+solver = NESTMPC.NestedNewtonSolverMPC(F,[psi, mu],[mpc,mpc],False)
 
 
 # Create a grid
@@ -164,11 +167,13 @@ tree = dolfinx.geometry.bb_tree(domain, domain.topology.dim)
 
 # problem = NLS.NonlinearMPCProblem(F, Chi, mpc, bcs=[])                # define nonlinear problem
 # solver  = NLS.NewtonSolverMPC(comm, problem, mpc)                                   # define solver
-
-
-
+# psi.x.array[:]= np.array([3.57142857,-0.28571429 ,-0.28571429  ,6.14285714  ,3.57142857 ,-0.28571429
+#   ,3.57142857 ,-0.28571429,3.57142857])
+# file = dolfinx.io.VTXWriter(MPI.COMM_WORLD, "./"+filename+".bp", [psi,mu])
+# file.write(0.0)
+# exit()
 # # Set Solver Configurations
-solver.convergence_criterion = "incremental"
+solver.convergence_criterion = "residual"
 solver.rtol = 1e-5
 ksp = solver.krylov_solver
 ksp.setOperators(solver._J,None)
@@ -185,15 +190,19 @@ if solver._J.getType()=="nest":
     nested_IS = solver._J.getNestISs()
     pc.setFieldSplitIS(("1", nested_IS[0][0]))
     pc.setFieldSplitIS(("2", nested_IS[0][1]))
+    opts[f"{option_prefix}pc_factor_mat_solver_type"] = "superlu"
     opts[f"{option_prefix}pc_fieldsplit_type"] = "schur"
+    # opts[f"maximum_iterations"] = 100
     opts[f"{option_prefix}pc_fieldsplit_schur_fact_type"] = "full"
     opts[f"{option_prefix}pc_fieldsplit_schur_precondition"] = "selfp"
-    opts[f"{option_prefix}fieldsplit_1_ksp_type"] = "gmres"
-    opts[f"{option_prefix}fieldsplit_1_pc_type"] = "ilu"
-    opts[f"{option_prefix}fieldsplit_1_ksp_rtol"] = 1e-10
-    opts[f"{option_prefix}fieldsplit_2_ksp_type"] = "gmres"
-    opts[f"{option_prefix}fieldsplit_2_pc_type"] = "ilu"
-    opts[f"{option_prefix}fieldsplit_2_ksp_rtol"] = 1e-10
+    opts[f"{option_prefix}fieldsplit_1_ksp_type"] = "fgmres"
+    opts[f"{option_prefix}fieldsplit_1_mat_schur_complement_ainv_type"] = "lump"
+    opts[f"{option_prefix}fieldsplit_2_mat_schur_complement_ainv_type"] = "lump"
+    opts[f"{option_prefix}fieldsplit_1_pc_type"] = "jacobi"
+    opts[f"{option_prefix}fieldsplit_1_ksp_rtol"] = 1e-5
+    opts[f"{option_prefix}fieldsplit_2_ksp_type"] = "fgmres"
+    opts[f"{option_prefix}fieldsplit_2_pc_type"] = "jacobi"
+    opts[f"{option_prefix}fieldsplit_2_ksp_rtol"] = 1e-5
 else:
     opts.clear()
     option_prefix = ksp.getOptionsPrefix()
@@ -201,11 +210,11 @@ else:
     opts[f"{option_prefix}pc_type"] = "lu"
 ksp.setFromOptions()
 
-# solver.solve()
+solver.solve()
 
 
-# get2dplot(psi,x_vals, y_vals,domain,tree,filename+"1iter",True)
-# get2dplot(mu,x_vals, y_vals,domain,tree,filename+"1iter",True)
+get2dplot(psi,x_vals, y_vals,domain,tree,filename+"1iter",True)
+get2dplot(mu,x_vals, y_vals,domain,tree,filename+"1iter",True)
 # exit()
 
 # print(scifem.evaluate_function(psi, points))
@@ -235,7 +244,7 @@ Error_ts.append(error_L2(psi, hex))
 # print(type(psi))
 
 
-while t < 1:
+while t < 50:
     t += dt
     # print("attemptin iteration...")
     r = solver.solve()
